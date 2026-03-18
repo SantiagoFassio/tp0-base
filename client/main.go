@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"strings"
 	"time"
 
@@ -33,10 +35,10 @@ func InitConfig() (*viper.Viper, error) {
 
 	// Add env variables supported
 	v.BindEnv("id")
-	v.BindEnv("server", "address")
-	v.BindEnv("loop", "period")
-	v.BindEnv("loop", "amount")
-	v.BindEnv("log", "level")
+	v.BindEnv("server.address")
+	v.BindEnv("loop.period")
+	v.BindEnv("loop.amount")
+	v.BindEnv("log.level")
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -94,10 +96,12 @@ func main() {
 	v, err := InitConfig()
 	if err != nil {
 		log.Criticalf("%s", err)
+		os.Exit(1)
 	}
 
 	if err := InitLogger(v.GetString("log.level")); err != nil {
 		log.Criticalf("%s", err)
+		os.Exit(1)
 	}
 
 	// Print program config with debugging purposes
@@ -110,6 +114,9 @@ func main() {
 		LoopPeriod:    v.GetDuration("loop.period"),
 	}
 
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
+
 	client := common.NewClient(clientConfig)
-	client.StartClientLoop()
+	client.StartClientLoop(done)
 }
