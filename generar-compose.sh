@@ -13,6 +13,8 @@ services:
       - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
+    volumes:
+      - ./server/config.ini:/config.ini
 EOF
 
 for ((i=1; i<=NUM_CLIENTS; i++))
@@ -30,6 +32,8 @@ cat <<EOF >> $OUTPUT_FILE
       - testing_net
     depends_on:
       - server
+    volumes:
+      - ./client/config.yaml:/config.yaml
 EOF
 done
 
@@ -44,3 +48,4 @@ networks:
 EOF
 
 echo "Archivo $OUTPUT_FILE generado con $NUM_CLIENTS clientes."
+echo "Nota del Ejercicio2: Se agregaron los volumenes para evitar la reconstruccion de las imagenes de docker"
