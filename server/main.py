@@ -54,7 +54,7 @@ def main():
     # To ensure graceful shutdown when signal is received, we register a signal handler
     def handle_sigterm(signum, frame):
         server.shutdown()
-        logging.info(f"action: shutdown | signal: {signum}")
+        logging.info(f"action: shutdown | result: in_progress | signal: {signum}")
 
     signal.signal(signal.SIGTERM, handle_sigterm)
 

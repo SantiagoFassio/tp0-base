@@ -59,7 +59,7 @@ func (c *Client) StartClientLoop(done chan os.Signal) {
 		// To ensure graceful shutdown when signal is received, we check if the done channel has received a signal
 		select {
 		case <-done:
-			log.Infof("action: shutdown | result: progress | client_id: %v", c.config.ID)
+			log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
 			return
 		default:
 		}
@@ -95,7 +95,7 @@ func (c *Client) StartClientLoop(done chan os.Signal) {
 		// Wait a time between sending one message and the next one
 		select {
 		case <-done:
-			log.Infof("action: shutdown | result: progress | client_id: %v", c.config.ID)
+			log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
 			return
 		case <-time.After(c.config.LoopPeriod):
 		}
