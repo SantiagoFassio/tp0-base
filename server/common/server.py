@@ -22,6 +22,8 @@ class Server:
 
         if len(parts) != 5:
             raise ValueError("Invalid bet format.")
+        if parts[3] == "":
+            raise ValueError("Birthdate cannot be empty.")
         
         return Bet(
             agency = 1,
@@ -77,16 +79,17 @@ class Server:
             logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
 
             response = "OK\n".encode('utf-8')
-
+        except ValueError as e:
+            response = "NOK\n".encode('utf-8')
+        except OSError as e:
+            logging.error(f"action: receive_message | result: fail | error: {e}")
+        finally:
             total_sent = 0
             while total_sent < len(response):
                 sent = client_sock.send(response[total_sent:])
                 if sent == 0:
                     raise ConnectionError("Client closed the connection")
                 total_sent += sent
-        except OSError as e:
-            logging.error(f"action: receive_message | result: fail | error: {e}")
-        finally:
             client_sock.close()
 
     def __accept_new_connection(self):
