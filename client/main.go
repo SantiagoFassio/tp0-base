@@ -40,6 +40,20 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop.amount")
 	v.BindEnv("log.level")
 
+	// Set env variables for client
+	v.BindEnv("nombre")
+	v.BindEnv("apellido")
+	v.BindEnv("dni")
+	v.BindEnv("nacimiento")
+	v.BindEnv("numero")
+
+	if v.GetString("nacimiento") == "" or len(v.GetString("nacimiento")) != 8 {
+		return nil, errors.New("Invalid nacimiento format or missing nacimiento")
+	}
+	if v.GetString("dni") == "" or len(v.GetString("dni")) > 8 {
+		return nil, errors.New("Invalid dni format or missing dni")
+	}
+
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
 	// can be loaded from the environment variables so we shouldn't
@@ -90,6 +104,15 @@ func PrintConfig(v *viper.Viper) {
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
 	)
+
+	log.Infof("action: config | result: success | client_id: %s | nombre: %s | apellido: %s | dni: %s | nacimiento: %s | numero: %s",
+		v.GetString("id"),
+		v.GetString("nombre"),
+		v.GetString("apellido"),
+		v.GetString("dni"),
+		v.GetString("nacimiento"),
+		v.GetString("numero"),
+	)
 }
 
 func main() {
@@ -114,9 +137,17 @@ func main() {
 		LoopPeriod:    v.GetDuration("loop.period"),
 	}
 
+	bet := Bet{
+		Nombre:   v.GetString("nombre"),
+		Apellido: v.GetString("apellido"),
+		DNI:      v.GetString("dni"),
+		Nacimiento: v.GetString("nacimiento"),
+		Numero:   v.GetString("numero"),
+	}
+
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
-	client := common.NewClient(clientConfig)
+	client := common.NewClient(clientConfig, bet)
 	client.StartClientLoop(done)
 }
