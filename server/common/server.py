@@ -1,6 +1,7 @@
 import socket
 import logging
 import threading
+from server.common.utils import Bet, store_bets
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -12,6 +13,24 @@ class Server:
         self._shutdown_event = threading.Event()
         # Timeout to unblock accept()
         self._server_socket.settimeout(1)
+
+    def parse_bet(msg: str, agency: int) -> Bet:
+        """
+        Parse a bet from a message string, returns a Bet object
+        """
+        parts = msg.strip().split("|")
+
+        if len(parts) != 5:
+            raise ValueError("Invalid bet format.")
+        
+        return Bet(
+            agency = agency,
+            first_name = parts[0],
+            last_name = parts[1],
+            document = parts[2],
+            birthdate = parts[3],
+            number = parts[4]
+        )
 
     def run(self):
         """
@@ -39,14 +58,34 @@ class Server:
         client socket will also be closed
         """
         try:
-            # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
+            buffer = b""
+            while b"\n" not in buffer:
+                chunk = client_sock.recv(1024)
+                if not chunk:
+                    raise ConnectionError("Client closed the connection")
+                buffer += chunk
+            
+            msg_bytes, _, _ = buffer.partition(b"\n")
+            msg = msg_bytes.decode('utf-8')
+
             addr = client_sock.getpeername()
             logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+
+            bet = self.parse_bet(msg, addr[0])
+            store_bets([bet])
+
+            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
+
+            response = "OK\n".encode('utf-8')
+            
+            total_sent = 0
+            while total_sent < len(response):
+                sent = client_sock.send(response[total_sent:])
+                if sent == 0:
+                    raise ConnectionError("Client closed the connection")
+                total_sent += sent
         except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
+            logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
 
