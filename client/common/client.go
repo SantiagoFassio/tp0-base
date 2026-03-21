@@ -60,7 +60,7 @@ func (c *Client) SerializeBet() string {
 		c.bet.Apellido,
 		c.bet.DNI,
 		c.bet.Nacimiento,
-		c.bet.Numero
+		c.bet.Numero,
 	)
 	return msg
 }

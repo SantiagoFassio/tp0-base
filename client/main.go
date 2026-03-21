@@ -47,7 +47,7 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("nacimiento")
 	v.BindEnv("numero")
 
-	if v.GetString("nacimiento") == "" || len(v.GetString("nacimiento")) != 8 {
+	if v.GetString("nacimiento") == "" {
 		return nil, errors.New("Invalid nacimiento format or missing nacimiento")
 	}
 	if v.GetString("dni") == "" || len(v.GetString("dni")) > 8 {

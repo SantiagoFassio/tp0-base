@@ -1,7 +1,7 @@
 import socket
 import logging
 import threading
-from server.common.utils import Bet, store_bets
+from common.utils import Bet, store_bets
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -14,7 +14,7 @@ class Server:
         # Timeout to unblock accept()
         self._server_socket.settimeout(1)
 
-    def parse_bet(msg: str, agency: int) -> Bet:
+    def parse_bet(self, msg: str) -> Bet:
         """
         Parse a bet from a message string, returns a Bet object
         """
@@ -24,7 +24,7 @@ class Server:
             raise ValueError("Invalid bet format.")
         
         return Bet(
-            agency = agency,
+            agency = 1,
             first_name = parts[0],
             last_name = parts[1],
             document = parts[2],
@@ -71,13 +71,13 @@ class Server:
             addr = client_sock.getpeername()
             logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
 
-            bet = self.parse_bet(msg, addr[0])
+            bet = self.parse_bet(msg)
             store_bets([bet])
 
             logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
 
             response = "OK\n".encode('utf-8')
-            
+
             total_sent = 0
             while total_sent < len(response):
                 sent = client_sock.send(response[total_sent:])
