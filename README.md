@@ -187,10 +187,10 @@ Respetar el formato y contenido las entradas de logs descritas en los ejercicios
 ### Protocolo
 
 Request:
-- Formato: JSON UTF-8
+- Formato: String Delimitado por el caracter "|"
 - Terminacion: Newline (\n)
 
-Campos: Todos tipo string
+Campos: Todos tipo string en orden
 - nombre
 - apellido
 - dni (XXXXXXX)
@@ -198,5 +198,5 @@ Campos: Todos tipo string
 - numero
 
 Respuesta:
-- JSON
+- String
 - Campo unico: status (OK o ERR segun resultado)

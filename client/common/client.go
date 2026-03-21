@@ -53,6 +53,18 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
+// SerializeBet Serializes the bet struct to a string format to be sent to the server
+func (c *Client) SerializeBet() string {
+	msg:= fmt.Sprintf("%s|%s|%s|%s|%s\n",
+		c.bet.Nombre,
+		c.bet.Apellido,
+		c.bet.DNI,
+		c.bet.Nacimiento,
+		c.bet.Numero
+	)
+	return msg
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop(done chan os.Signal) {
 	// There is an autoincremental msgID to identify every message sent
@@ -69,15 +81,25 @@ func (c *Client) StartClientLoop(done chan os.Signal) {
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
 
-		// TODO: Modify the send to avoid short-write
-		fmt.Fprintf(
-			c.conn,
-			"[CLIENT %v] Message N°%v\n",
-			c.config.ID,
-			msgID,
-		)
+		msg := c.SerializeBet()
+		data := []byte(msg)
+		totalWritten := 0
 
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		// DONE: Send message to the server accounting for short writes.
+		for totalWritten < len(data) {
+			n, err := c.conn.Write(data[totalWritten:])
+			if err != nil {
+				log.Errorf("action: apuesta_enviada | result: fail | client_id: %v | error: %v",
+					c.config.ID,
+					err,
+				)
+				c.conn.Close()
+				return
+			}
+			totalWritten += n
+		}
+
+		response, err := bufio.NewReader(c.conn).ReadString('\n')
 		c.conn.Close()
 
 		if err != nil {
@@ -88,9 +110,14 @@ func (c *Client) StartClientLoop(done chan os.Signal) {
 			return
 		}
 
-		log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
+		log.Infof("action: receive_message | result: success | client_id: %v | response: %v",
 			c.config.ID,
-			msg,
+			response,
+		)
+
+		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
+			c.bet.DNI,
+			c.bet.Numero,
 		)
 
 		// Check for graceful shutdown signal
