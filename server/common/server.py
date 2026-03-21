@@ -44,12 +44,18 @@ class Server:
         """
 
         logging.info('action: accept_connections | result: in_progress')
+
+        idle_cycles = 0
+
         while not self._shutdown_event.is_set():
             try:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
+                idle_cycles = 0
             except socket.timeout:
-                continue
+                idle_cycles += 1
+                if idle_cycles >= 3:
+                    break
             except OSError:
                 break
 
