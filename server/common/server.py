@@ -69,7 +69,7 @@ class Server:
             msg = msg_bytes.decode('utf-8')
 
             addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
+            logging.info(f'action: receive_message | result: success | ip: {addr[0]}')
 
             bet = self.parse_bet(msg)
             store_bets([bet])
