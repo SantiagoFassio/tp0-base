@@ -47,13 +47,6 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("nacimiento")
 	v.BindEnv("numero")
 
-	if v.GetString("nacimiento") == "" {
-		return nil, errors.New("Invalid nacimiento format or missing nacimiento")
-	}
-	if v.GetString("dni") == "" || len(v.GetString("dni")) > 8 {
-		return nil, errors.New("Invalid dni format or missing dni")
-	}
-
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
 	// can be loaded from the environment variables so we shouldn't
