@@ -47,10 +47,10 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("nacimiento")
 	v.BindEnv("numero")
 
-	if v.GetString("nacimiento") == "" or len(v.GetString("nacimiento")) != 8 {
+	if v.GetString("nacimiento") == "" || len(v.GetString("nacimiento")) != 8 {
 		return nil, errors.New("Invalid nacimiento format or missing nacimiento")
 	}
-	if v.GetString("dni") == "" or len(v.GetString("dni")) > 8 {
+	if v.GetString("dni") == "" || len(v.GetString("dni")) > 8 {
 		return nil, errors.New("Invalid dni format or missing dni")
 	}
 
@@ -137,7 +137,7 @@ func main() {
 		LoopPeriod:    v.GetDuration("loop.period"),
 	}
 
-	bet := Bet{
+	bet := common.Bet{
 		Nombre:   v.GetString("nombre"),
 		Apellido: v.GetString("apellido"),
 		DNI:      v.GetString("dni"),
