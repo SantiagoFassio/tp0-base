@@ -123,6 +123,6 @@ func main() {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
-	client := common.NewClient(clientConfig, bet)
-	client.StartClientLoop(done)
+	client := common.NewClient(clientConfig)
+	client.SendBets(done)
 }

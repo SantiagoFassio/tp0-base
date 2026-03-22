@@ -1,5 +1,5 @@
 
-from server.common.utils import Bet
+from common.utils import Bet
 
 def parse_bet(msg: str) -> Bet:
     parts = msg.strip().split("|")

@@ -1,10 +1,8 @@
 package common
 
 import (
-	"fmt"
 	"os"
 	"bufio"
-	"strings"
 	"io"
 )
 
@@ -29,14 +27,14 @@ func NewBatchReader(filePath string, maxAmount int) (*BatchReader, error) {
 	}, nil
 }
 
-func (r *BatchReader) NextBatch() ([]Bet, error) {
+func (r *BatchReader) NextBatch(agency string) ([]Bet, error) {
 	var batch []Bet
 	currentSize := 0
 
 	for r.scanner.Scan() {
 		line := r.scanner.Text()
 		
-		bet := parseCSVLine(line)
+		bet := parseCSVLine(line, agency)
 
 		serialized := SerializeBet(bet)
 		lineSize := len(serialized) + 1 // +1 for newline

@@ -6,6 +6,8 @@ import (
 	"net"
 	"time"
 	"os"
+	"io"
+	"strings"
 
 	"github.com/op/go-logging"
 )
@@ -30,7 +32,7 @@ type Client struct {
 
 // NewClient Initializes a new client receiving the configuration
 // as a parameter
-func NewClient(config ClientConfig, bet Bet) *Client {
+func NewClient(config ClientConfig) *Client {
 	client := &Client{
 		config: config,
 	}
@@ -74,6 +76,7 @@ func (c *Client) sendBatch(bets []Bet) {
 			)
 			return
 		}
+		log.Infof("action: env | %v", msg)
 		totalSent += n
 	}
 
@@ -118,7 +121,7 @@ func (c *Client) SendBets(done chan os.Signal) {
 		}
 		
 		// Make the reader read the next batch of bets
-		batch, err := reader.NextBatch()
+		batch, err := reader.NextBatch(c.config.Agency)
 
 		// If EOF is reached or there are no bets in the batch, we finish sending bets
 		if err == io.EOF || len(batch) == 0 {

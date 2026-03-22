@@ -3,7 +3,7 @@ import logging
 import threading
 from common.utils import Bet, store_bets
 from common.parser import parse_bet, parse_batch
-from server.common.reader import recv_line, recv_batch
+from common.reader import recv_line, recv_batch
 
 class Server:
     def __init__(self, port, listen_backlog):
