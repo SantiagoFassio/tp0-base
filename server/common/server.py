@@ -51,6 +51,7 @@ class Server:
         try:
             # Leer la primera linea para obtener el número de apuestas en el batch
             header, buffer = recv_line(client_sock)
+
             n = int(header.strip())
 
             # Leer el batch completo
@@ -59,16 +60,20 @@ class Server:
             addr = client_sock.getpeername()
             logging.info(f'action: receive_message | result: success | ip: {addr[0]}')
 
+            response = "OK\n".encode('utf-8')
+
             try:
                 bets = parse_batch(n , lines)
-                store_bets(bets)
+                if len(bets) != n:
+                    raise ValueError('Batch size does not match the number of bets parsed.')
             except ValueError:
                 logging.error(f'action: apuesta_recibida | result: fail | cantidad: {str(n)}')
                 raise ValueError('Invalid batch format.')
+            finally:
+                store_bets(bets)
 
             logging.info(f'action: apuesta_recibida | result: success | cantidad: {str(n)}')
 
-            response = "OK\n".encode('utf-8')
         except ValueError as e:
             response = "NOK\n".encode('utf-8')
         except OSError as e:

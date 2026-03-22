@@ -6,9 +6,7 @@ def parse_bet(msg: str) -> Bet:
 
     # TODO
     # Comprobar la bet
-    if len(parts) != 5:
-        return None
-    if parts[3] == "":
+    if len(parts) != 6:
         return None
     
     return Bet(
@@ -26,14 +24,11 @@ def parse_batch(expected, lines) -> list[Bet]:
         raise ValueError("Empty batch.")
 
     bets = []
-    for line in lines[1:]:
+    for line in lines:
         if line.strip() == "":
             continue
         bet = parse_bet(line.strip())
         if bet is not None:
             bets.append(bet)
-    
-    if len(bets) != expected:
-        raise ValueError("Batch header does not match the number of bets.")
     
     return bets

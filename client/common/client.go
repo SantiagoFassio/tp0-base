@@ -76,7 +76,7 @@ func (c *Client) sendBatch(bets []Bet) {
 			)
 			return
 		}
-		log.Infof("action: env | %v", msg)
+
 		totalSent += n
 	}
 
