@@ -15,15 +15,16 @@ var log = logging.MustGetLogger("log")
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
 	ID            string
+	Agency		  string
 	ServerAddress string
 	LoopAmount    int
 	LoopPeriod    time.Duration
+	MaxAmount     int
 }
 
 // Client Entity that encapsulates how
 type Client struct {
 	config ClientConfig
-	bet    Bet
 	conn   net.Conn
 }
 
@@ -32,7 +33,6 @@ type Client struct {
 func NewClient(config ClientConfig, bet Bet) *Client {
 	client := &Client{
 		config: config,
-		bet:    bet,
 	}
 	return client
 }
@@ -53,81 +53,80 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-// SerializeBet Serializes the bet struct to a string format to be sent to the server
-func (c *Client) SerializeBet() string {
-	msg:= fmt.Sprintf("%s|%s|%s|%s|%s\n",
-		c.bet.Nombre,
-		c.bet.Apellido,
-		c.bet.DNI,
-		c.bet.Nacimiento,
-		c.bet.Numero,
-	)
-	return msg
-}
+func (c *Client) sendBatch(bets []Bet) {
+	// Create the connection to the server in every loop iteration.
+	c.createClientSocket()
+	defer c.conn.Close()
 
-// StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop(done chan os.Signal) {
-	// There is an autoincremental msgID to identify every message sent
-	// Messages if the message amount threshold has not been surpassed
-	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
-		// To ensure graceful shutdown when signal is received, we check if the done channel has received a signal
-		select {
-		case <-done:
-			log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
-			return
-		default:
-		}
-		
-		// Create the connection the server in every loop iteration. Send an
-		c.createClientSocket()
+	msg := SerializeBatch(bets)
+	
+	// short write safe
+	totalSent := 0
+	data := []byte(msg)
 
-		msg := c.SerializeBet()
-		data := []byte(msg)
-		totalWritten := 0
-
-		// DONE: Send message to the server accounting for short writes.
-		for totalWritten < len(data) {
-			n, err := c.conn.Write(data[totalWritten:])
-			if err != nil {
-				log.Errorf("action: apuesta_enviada | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
-				c.conn.Close()
-				return
-			}
-			totalWritten += n
-		}
-
-		response, err := bufio.NewReader(c.conn).ReadString('\n')
-		c.conn.Close()
-
+	// Enviamos el batch al servidor
+	for totalSent < len(data) {
+		n, err := c.conn.Write(data[totalSent:])
 		if err != nil {
-			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+			log.Errorf("action: batch_enviada | result: fail | client_id: %v | error: %v",
 				c.config.ID,
 				err,
 			)
 			return
 		}
+		totalSent += n
+	}
 
-		log.Infof("action: receive_message | result: success | client_id: %v | response: %v",
+	// Esperamos la respuesta del servidor después de enviar el batch
+	response, err := bufio.NewReader(c.conn).ReadString('\n')
+	if err != nil {
+		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
 			c.config.ID,
-			response,
+			err,
 		)
+		return
+	}
 
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v",
-			c.bet.DNI,
-			c.bet.Numero,
+	log.Infof("action: receive_message | result: success | client_id: %v | response: %v",
+		c.config.ID,
+		strings.TrimSpace(response),
+	)
+}
+
+// Send Bets starts the loop and sends messages to the client until the bets in 
+// the file are finished or a shutdown signal is received.
+func (c *Client) SendBets(done chan os.Signal) {
+	// Path to the file
+	path := fmt.Sprintf("/data/agency-%s.csv", c.config.Agency)
+
+	reader, err := NewBatchReader(path, c.config.MaxAmount)
+	if err != nil {
+		log.Criticalf("action: read_file | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
 		)
+		return
+	}
 
-		// Check for graceful shutdown signal
-		// Wait a time between sending one message and the next one
+	for {
+		// To ensure graceful shutdown when signal is received, we check if the done channel has received a signal
 		select {
-		case <-done:
-			log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
-			return
-		case <-time.After(c.config.LoopPeriod):
+			case <-done:
+				log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
+				return
+			default:
 		}
+		
+		// Make the reader read the next batch of bets
+		batch, err := reader.NextBatch()
+
+		// If EOF is reached or there are no bets in the batch, we finish sending bets
+		if err == io.EOF || len(batch) == 0 {
+			break
+		}
+
+		// Send the batch of bets to the server
+		c.sendBatch(batch)
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }

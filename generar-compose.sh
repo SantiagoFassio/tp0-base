@@ -26,17 +26,14 @@ cat <<EOF >> $OUTPUT_FILE
     entrypoint: /client
     environment:
       - CLI_ID=$i
-      - CLI_NOMBRE=Nombre
-      - CLI_APELLIDO=Base
-      - CLI_DNI=11111111
-      - CLI_NACIMIENTO=1111-11-11
-      - CLI_NUMERO=1
+      - CLI_AGENCY=$i
     networks:
       - testing_net
     depends_on:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/data
 EOF
 done
 

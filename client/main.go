@@ -39,13 +39,10 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop.period")
 	v.BindEnv("loop.amount")
 	v.BindEnv("log.level")
+	v.BindEnv("batch.maxAmount")
 
 	// Set env variables for client
-	v.BindEnv("nombre")
-	v.BindEnv("apellido")
-	v.BindEnv("dni")
-	v.BindEnv("nacimiento")
-	v.BindEnv("numero")
+	v.BindEnv("agency")
 
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
@@ -97,15 +94,6 @@ func PrintConfig(v *viper.Viper) {
 		v.GetDuration("loop.period"),
 		v.GetString("log.level"),
 	)
-
-	log.Infof("action: config | result: success | client_id: %s | nombre: %s | apellido: %s | dni: %s | nacimiento: %s | numero: %s",
-		v.GetString("id"),
-		v.GetString("nombre"),
-		v.GetString("apellido"),
-		v.GetString("dni"),
-		v.GetString("nacimiento"),
-		v.GetString("numero"),
-	)
 }
 
 func main() {
@@ -126,16 +114,10 @@ func main() {
 	clientConfig := common.ClientConfig{
 		ServerAddress: v.GetString("server.address"),
 		ID:            v.GetString("id"),
+		Agency:		   v.GetString("agency"),
 		LoopAmount:    v.GetInt("loop.amount"),
 		LoopPeriod:    v.GetDuration("loop.period"),
-	}
-
-	bet := common.Bet{
-		Nombre:   v.GetString("nombre"),
-		Apellido: v.GetString("apellido"),
-		DNI:      v.GetString("dni"),
-		Nacimiento: v.GetString("nacimiento"),
-		Numero:   v.GetString("numero"),
+		MaxAmount:     v.GetInt("batch.maxAmount"),
 	}
 
 	done := make(chan os.Signal, 1)
