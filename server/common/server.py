@@ -2,6 +2,8 @@ import socket
 import logging
 import threading
 from common.utils import Bet, store_bets
+from common.parser import parse_bet, parse_batch
+from server.common.reader import recv_line, recv_batch
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -13,26 +15,6 @@ class Server:
         self._shutdown_event = threading.Event()
         # Timeout to unblock accept()
         self._server_socket.settimeout(1)
-
-    def parse_bet(self, msg: str) -> Bet:
-        """
-        Parse a bet from a message string, returns a Bet object
-        """
-        parts = msg.strip().split("|")
-
-        if len(parts) != 5:
-            raise ValueError("Invalid bet format.")
-        if parts[3] == "":
-            raise ValueError("Birthdate cannot be empty.")
-        
-        return Bet(
-            agency = 1,
-            first_name = parts[0],
-            last_name = parts[1],
-            document = parts[2],
-            birthdate = parts[3],
-            number = parts[4]
-        )
 
     def run(self):
         """
@@ -67,23 +49,24 @@ class Server:
         client socket will also be closed
         """
         try:
-            buffer = b""
-            while b"\n" not in buffer:
-                chunk = client_sock.recv(1024)
-                if not chunk:
-                    raise ConnectionError("Client closed the connection")
-                buffer += chunk
-            
-            msg_bytes, _, _ = buffer.partition(b"\n")
-            msg = msg_bytes.decode('utf-8')
+            # Leer la primera linea para obtener el número de apuestas en el batch
+            header, buffer = recv_line(client_sock)
+            n = int(header.strip())
+
+            # Leer el batch completo
+            lines = recv_batch(client_sock, n, buffer)
 
             addr = client_sock.getpeername()
             logging.info(f'action: receive_message | result: success | ip: {addr[0]}')
 
-            bet = self.parse_bet(msg)
-            store_bets([bet])
+            try:
+                bets = parse_batch(n , lines)
+                store_bets(bets)
+            except ValueError:
+                logging.error(f'action: apuesta_recibida | result: fail | cantidad: {str(n)}')
+                raise ValueError('Invalid batch format.')
 
-            logging.info(f'action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}')
+            logging.info(f'action: apuesta_recibida | result: success | cantidad: {str(n)}')
 
             response = "OK\n".encode('utf-8')
         except ValueError as e:
@@ -102,9 +85,6 @@ class Server:
     def __accept_new_connection(self):
         """
         Accept new connections
-
-        Function blocks until a connection to a client is made.
-        Then connection created is printed and returned
         """
 
         # Connection arrived
