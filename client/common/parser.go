@@ -9,11 +9,10 @@ func parseCSVLine(line string) Bet {
 	parts := strings.Split(line, "|")
 
 	return Bet{
-		Agency:    parts[0],
-		Name:      parts[1],
-		Surname:   parts[2],
-		Document:  parts[3],
-		Birthdate: parts[4],
-		Number:    parts[5],
+		Name:      parts[0],
+		Surname:   parts[1],
+		Document:  parts[2],
+		Birthdate: parts[3],
+		Number:    parts[4],
 	}
 }
