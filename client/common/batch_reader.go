@@ -4,6 +4,7 @@ import (
 	"os"
 	"bufio"
 	"io"
+	"strings"
 )
 
 type BatchReader struct {
@@ -49,10 +50,7 @@ func (r *BatchReader) NextBatch(agency string) ([]Bet, error) {
 			continue
 		}
 		
-		bet, err := parseCSVLine(line, agency)
-		if err != nil {
-			continue
-		}
+		bet := parseCSVLine(line, agency)
 
 		serialized := SerializeBet(bet)
 		lineSize := len(serialized) + 1 // +1 for newline
