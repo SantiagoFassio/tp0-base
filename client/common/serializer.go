@@ -20,7 +20,7 @@ func SerializeBet(bet Bet) string {
 func SerializeBatch(bets []Bet) string {
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("%d\n", len(bets)))
+	builder.WriteString(fmt.Sprintf("B|%d\n", len(bets)))
 
 	for _, bet := range bets {
 		builder.WriteString(SerializeBet(bet))

@@ -1,9 +1,11 @@
 import socket
 import logging
 import threading
-from common.utils import Bet, store_bets
-from common.parser import parse_bet, parse_batch
+from common.utils import Bet, has_won, store_bets, load_bets
+from common.parser import parse_bet, process_header, parse_winners
 from common.reader import recv_line, recv_batch
+from common.sender import send_response
+from common.result import Result
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -15,6 +17,7 @@ class Server:
         self._shutdown_event = threading.Event()
         # Timeout to unblock accept()
         self._server_socket.settimeout(1)
+        self._agencies_done = set()
 
     def run(self):
         """
@@ -40,6 +43,50 @@ class Server:
             except OSError:
                 break
 
+    def process_signal(self, signal: str, n: int, initial_buffer=b""):
+        if signal == "B":
+            lines = recv_batch(self._server_socket, n, initial_buffer)
+
+            valid_bets = []
+            invalid = 0
+
+            for line in lines:
+                try:
+                    bet = parse_bet(line)
+                    valid_bets.append(bet)
+                except ValueError:
+                    invalid += 1
+
+            if len(valid_bets) > 0:
+                store_bets(valid_bets)
+            
+            if invalid > 0:
+                return Result(False)
+            
+            return Result(True)
+            
+        elif signal == "E":
+            if n < 0 or n > 5:
+                return Result(False, "Invalid agency")
+            elif n in self._agencies_done:
+                return Result(False, "Duplicate agency")
+            self._agencies_done.add(n)
+            return Result(True)
+        
+        elif signal == "G":
+            if n < 0 or n > 5:
+                return Result(False, "Invalid agency")
+            elif len(self._agencies_done) != 5:
+                return Result(False, "Not all agencies have completed their batches")
+            
+            bets = load_bets()
+            winners = [bet for bet in bets if bet.agency == n and has_won(bet)]
+
+            return Result(True, payload=winners)
+        
+        else:
+            return Result(False, "Invalid signal")
+
     def __handle_client_connection(self, client_sock):
         """
         Read message from a specific client socket and closes the socket
@@ -47,43 +94,43 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
+        response = b"NOK\n"
         try:
             # Leer la primera linea para obtener el número de apuestas en el batch
             header, buffer = recv_line(client_sock)
-
-            n = int(header.strip())
-
-            # Leer el batch completo
-            lines = recv_batch(client_sock, n, buffer)
-
             addr = client_sock.getpeername()
+
             logging.info(f'action: receive_message | result: success | ip: {addr[0]}')
 
-            response = "OK\n".encode('utf-8')
+            signal, n = process_header(header)
 
-            try:
-                bets = parse_batch(n , lines)
-                if len(bets) != n:
-                    raise ValueError('Batch size does not match the number of bets parsed.')
-            except ValueError:
-                logging.error(f'action: apuesta_recibida | result: fail | cantidad: {str(n)}')
-                raise ValueError('Invalid batch format.')
-            finally:
-                store_bets(bets)
+            result = self.process_signal(signal, n, buffer)
 
-            logging.info(f'action: apuesta_recibida | result: success | cantidad: {str(n)}')
+            if not result.ok:
+                if signal == "B":
+                    logging.error(f'action: apuesta_recibida | result: fail | cantidad: {str(n)}')
+                raise ValueError(result.message)
+            
+            if signal == "B":
+                logging.info(f'action: apuesta_recibida | result: success | cantidad: {str(n)}')
 
-        except ValueError as e:
-            response = "NOK\n".encode('utf-8')
-        except OSError as e:
+            elif signal == "E":
+                logging.info(f'action: agencia_finalizada | result: success | agencia: {str(n)}')
+                if len(self._agencies_done) == 5:
+                    logging.info(f'action: sorteo | result: success')
+
+            elif signal == "G":
+                winners = result.payload or []
+                response = parse_winners(winners)
+
+            if signal != "G":
+                response = b"OK\n"
+
+        except Exception as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
+            response = b"NOK\n"
         finally:
-            total_sent = 0
-            while total_sent < len(response):
-                sent = client_sock.send(response[total_sent:])
-                if sent == 0:
-                    raise ConnectionError("Client closed the connection")
-                total_sent += sent
+            send_response(client_sock, response)
             client_sock.close()
 
     def __accept_new_connection(self):

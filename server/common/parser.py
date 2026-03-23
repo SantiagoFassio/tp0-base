@@ -1,5 +1,10 @@
-
 from common.utils import Bet
+
+def process_header(header: str):
+    messages = header.strip().split("|")
+    if len(messages) != 2 or messages[0] not in ("B", "E", "G"):
+        raise ValueError("Invalid header format")
+    return (messages[0], int(messages[1]))
 
 def parse_bet(msg: str) -> Bet:
     parts = msg.strip().split("|")
@@ -18,17 +23,8 @@ def parse_bet(msg: str) -> Bet:
         number = parts[5]
     )
 
-def parse_batch(expected, lines) -> list[Bet]:
-
-    if len(lines) < 1:
-        raise ValueError("Empty batch.")
-
-    bets = []
-    for line in lines:
-        if line.strip() == "":
-            continue
-        bet = parse_bet(line.strip())
-        if bet is not None:
-            bets.append(bet)
-    
-    return bets
+def parse_winners(winners: list[Bet]):
+    msg = f"{len(winners)}\n"
+    for winner in winners:
+        msg += f"{winner.document}\n"
+    return msg.encode("utf-8")

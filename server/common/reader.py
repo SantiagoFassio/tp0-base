@@ -1,6 +1,4 @@
 import socket
-from common.utils import Bet, store_bets
-from common.parser import parse_bet, parse_batch
 
 def recv_line(sock: socket.socket) -> str:
     buffer = b""

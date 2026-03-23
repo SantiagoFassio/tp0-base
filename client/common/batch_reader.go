@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"fmt"
 )
 
 type BatchReader struct {
@@ -54,8 +55,9 @@ func (r *BatchReader) NextBatch(agency string) ([]Bet, error) {
 
 		serialized := SerializeBet(bet)
 		lineSize := len(serialized) + 1 // +1 for newline
+		headerSize := len(fmt.Sprintf("B|%d\n", len(batch)+1)) // +1 for the new bet
 
-		if len(batch) > 0 && (len(batch) >= r.maxAmount || currentSize+lineSize > r.maxBytes) {
+		if len(batch) > 0 && (len(batch) >= r.maxAmount || currentSize+lineSize+headerSize > r.maxBytes) {
 			auxLine := line
 			r.pending = &auxLine
 			return batch, nil
