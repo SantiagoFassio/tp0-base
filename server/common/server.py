@@ -18,8 +18,7 @@ class Server:
 
     def run(self):
         """
-        Dummy Server loop
-
+        Server Loop
         Server that accept a new connections and establishes a
         communication with a client. After client with communucation
         finishes, servers starts to accept new connections again
@@ -91,9 +90,6 @@ class Server:
         """
         Accept new connections
         """
-
-        # Connection arrived
-        
         c, addr = self._server_socket.accept()
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c

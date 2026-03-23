@@ -51,14 +51,15 @@ func (r *BatchReader) NextBatch(agency string) ([]Bet, error) {
 		
 		bet, err := parseCSVLine(line, agency)
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		serialized := SerializeBet(bet)
 		lineSize := len(serialized) + 1 // +1 for newline
 
-		if len(batch) >= r.maxAmount || currentSize+lineSize > r.maxBytes {
-			r.pending = &line
+		if len(batch) > 0 && (len(batch) >= r.maxAmount || currentSize+lineSize > r.maxBytes) {
+			auxLine := line
+			r.pending = &auxLine
 			return batch, nil
 		}
 		
