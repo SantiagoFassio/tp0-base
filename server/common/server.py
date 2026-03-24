@@ -8,7 +8,7 @@ from common.sender import send_response
 from common.result import Result
 
 class Server:
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, agencies):
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', port))
@@ -18,6 +18,7 @@ class Server:
         # Timeout to unblock accept()
         self._server_socket.settimeout(1)
         self._agencies_done = set()
+        self._total_agencies = agencies
 
     def run(self):
         """
@@ -66,7 +67,7 @@ class Server:
             return Result(True)
             
         elif signal == "E":
-            if n < 0 or n > 5:
+            if n < 1 or n > self._total_agencies:
                 return Result(False, "Invalid agency")
             elif n in self._agencies_done:
                 return Result(False, "Duplicate agency")
@@ -74,9 +75,9 @@ class Server:
             return Result(True)
         
         elif signal == "G":
-            if n < 0 or n > 5:
+            if n < 1 or n > self._total_agencies:
                 return Result(False, "Invalid agency")
-            elif len(self._agencies_done) != 5:
+            elif len(self._agencies_done) != self._total_agencies:
                 return Result(False, "Not all agencies have completed their batches")
             
             bets = load_bets()
@@ -116,7 +117,7 @@ class Server:
 
             elif signal == "E":
                 logging.info(f'action: agencia_finalizada | result: success | agencia: {str(n)}')
-                if len(self._agencies_done) == 5:
+                if len(self._agencies_done) == self._total_agencies:
                     logging.info(f'action: sorteo | result: success')
 
             elif signal == "G":
