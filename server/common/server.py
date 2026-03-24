@@ -128,7 +128,6 @@ class Server:
                 response = b"OK\n"
 
         except Exception as e:
-            logging.error(f"action: receive_message | result: fail | error: {e}")
             response = b"NOK\n"
         finally:
             send_response(client_sock, response)
