@@ -8,6 +8,7 @@ import (
 	"os"
 	"io"
 	"strings"
+	"strconv"
 
 	"github.com/op/go-logging"
 )
@@ -59,27 +60,44 @@ func (c *Client) sendAndReceive(msg string) (string, error) {
 	c.createClientSocket()
 	defer c.conn.Close()
 
-	// short write safe
-	totalSent := 0
-	data := []byte(msg)
-
-	// Enviamos el batch al servidor
-	for totalSent < len(data) {
-		n, err := c.conn.Write(data[totalSent:])
-		if err != nil {
-			return "", err
-		}
-
-		totalSent += n
-	}
-
-	// Esperamos la respuesta del servidor después de enviar el batch
-	response, err := bufio.NewReader(c.conn).ReadString('\n')
-	if err != nil {
+	if err := writeAll(c.conn, []byte(msg)); err != nil {
 		return "", err
 	}
+	
+	reader := bufio.NewReader(c.conn)
+	return readLine(reader)
+}
 
-	return strings.TrimSpace(response), nil
+func (c *Client) sendAndReceiveWinners(msg string) ([]string, bool, error) {
+	c.createClientSocket()
+	defer c.conn.Close()
+
+	if err := writeAll(c.conn, []byte(msg)); err != nil {
+		return nil, false, err
+	}
+
+	reader := bufio.NewReader(c.conn)
+	header, err := readLine(reader)
+
+	if err != nil {
+		return nil, false, err
+	}
+
+	if header == "NOK" {
+		return nil, false, nil
+	}
+
+	n, err := strconv.Atoi(header)
+	if err != nil {
+		return nil, false, err
+	}
+
+	winners, err := readNLines(reader, n)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return winners, true, nil
 }
 
 func (c *Client) sendBatch(bets []Bet) {
@@ -185,7 +203,7 @@ func (c *Client) GetResults(done chan os.Signal) {
 			default:
 		}
 
-		response, err := c.sendAndReceive(msg)
+		response, ready, err := c.sendAndReceiveWinners(msg)
 
 		if err != nil {
 			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v",
@@ -195,12 +213,11 @@ func (c *Client) GetResults(done chan os.Signal) {
 			return
 		}
 
-		if response == "NOK" {
+		if !ready {
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 
-		winners, err := parseWinners(response)
 		if err != nil {
 			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v",
 				c.config.ID,
@@ -210,7 +227,7 @@ func (c *Client) GetResults(done chan os.Signal) {
 		}
 
 		log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v",
-			len(winners))
+			len(response))
 		return
 	}
 }
