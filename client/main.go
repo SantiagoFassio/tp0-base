@@ -125,4 +125,6 @@ func main() {
 
 	client := common.NewClient(clientConfig)
 	client.SendBets(done)
+	client.SendEnd(done)
+	client.GetResults(done)
 }

@@ -55,13 +55,10 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-func (c *Client) sendBatch(bets []Bet) {
-	// Create the connection to the server in every loop iteration.
+func (c *Client) sendAndReceive(msg string) (string, error) {
 	c.createClientSocket()
 	defer c.conn.Close()
 
-	msg := SerializeBatch(bets)
-	
 	// short write safe
 	totalSent := 0
 	data := []byte(msg)
@@ -70,11 +67,7 @@ func (c *Client) sendBatch(bets []Bet) {
 	for totalSent < len(data) {
 		n, err := c.conn.Write(data[totalSent:])
 		if err != nil {
-			log.Errorf("action: batch_enviada | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return
+			return "", err
 		}
 
 		totalSent += n
@@ -83,7 +76,19 @@ func (c *Client) sendBatch(bets []Bet) {
 	// Esperamos la respuesta del servidor después de enviar el batch
 	response, err := bufio.NewReader(c.conn).ReadString('\n')
 	if err != nil {
-		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+		return "", err
+	}
+
+	return strings.TrimSpace(response), nil
+}
+
+func (c *Client) sendBatch(bets []Bet) {
+
+	msg := SerializeBatch(bets)
+	response, err := c.sendAndReceive(msg)
+	
+	if err != nil {
+		log.Errorf("action: batch_enviada | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
@@ -132,4 +137,80 @@ func (c *Client) SendBets(done chan os.Signal) {
 		c.sendBatch(batch)
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+	return
+}
+
+func (c *Client) SendEnd(done chan os.Signal) {
+	msg := fmt.Sprintf("E|%s\n", c.config.Agency)
+
+	for {
+		// To ensure graceful shutdown when signal is received, we check if the done channel has received a signal
+		select {
+			case <-done:
+				log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
+				return
+			default:
+		}
+
+		response, err := c.sendAndReceive(msg)
+
+		if err != nil {
+			log.Errorf("action: end_enviado | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return
+		}
+
+		if response == "OK" {
+			log.Infof("action: end_enviado | result: success | client_id: %v | agencia: %v",
+				c.config.ID, c.config.Agency)
+			return
+		}
+
+		//retry
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func (c *Client) GetResults(done chan os.Signal) {
+	msg := fmt.Sprintf("G|%s\n", c.config.Agency)
+
+	for {
+		// To ensure graceful shutdown when signal is received, we check if the done channel has received a signal
+		select {
+			case <-done:
+				log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
+				return
+			default:
+		}
+
+		response, err := c.sendAndReceive(msg)
+
+		if err != nil {
+			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return
+		}
+
+		if response == "NOK" {
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		winners, err := parseWinners(response)
+		if err != nil {
+			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v",
+				c.config.ID,
+				err,
+			)
+			return
+		}
+
+		log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v",
+			len(winners))
+		return
+	}
 }
