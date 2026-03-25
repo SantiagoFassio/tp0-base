@@ -53,13 +53,6 @@ def main():
     # Initialize server and start server loop
     server = Server(port, listen_backlog, agencies)
 
-    # To ensure graceful shutdown when signal is received, we register a signal handler
-    def handle_sigterm(signum, frame):
-        server.shutdown()
-        logging.info(f"action: shutdown | result: in_progress | signal: {signum}")
-
-    signal.signal(signal.SIGTERM, handle_sigterm)
-
     server.run()
 
 def initialize_log(logging_level):
@@ -74,7 +67,6 @@ def initialize_log(logging_level):
         level=logging_level,
         datefmt='%Y-%m-%d %H:%M:%S',
     )
-
 
 if __name__ == "__main__":
     main()
