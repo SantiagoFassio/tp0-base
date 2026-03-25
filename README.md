@@ -383,3 +383,20 @@ A su vez, se implemento un semaforo para limitar la cantidad maxima de procesos 
 Por defecto, la cantidad de procesos simultaneos esta limitada al minimo entre el numero total de clientes
 y un valor maximo (10 por defecto). Esto tiene el objetivo de que se cree una cantidad ilimitada
 de procesos y que no se agoten los recursos (CPU, memoria).
+
+# Ejecucion
+
+Habiendo provisto de los archivos necesarios para la cantidad correspondiente de clientes (n clientes, n archivos),
+crear el docker-compose.yaml y luego hacer ejecutar las imagenes mediante el makefile:
+```bash
+./generar-compose.sh {nombre-del-archivo} {n}
+make docker-compose-up
+```
+Para observar los logs:
+```bash
+make docker-compose-logs
+```
+Para apagar todos los contenedores:
+```bash
+make docker-compose-down
+```
