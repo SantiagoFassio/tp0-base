@@ -8,6 +8,8 @@ import (
 	"fmt"
 )
 
+// BatchReader is responsible for reading bets from a CSV file in batches,
+// ensuring that the total size of the batch does not exceed 8KB and the number of bets does not exceed maxAmount.
 type BatchReader struct {
 	file      *os.File
 	scanner   *bufio.Scanner
@@ -16,6 +18,7 @@ type BatchReader struct {
 	maxBytes  int
 }
 
+// NewBatchReader initializes a new BatchReader for the given file path and maximum amount of bets per batch.
 func NewBatchReader(filePath string, maxAmount int) (*BatchReader, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -31,6 +34,9 @@ func NewBatchReader(filePath string, maxAmount int) (*BatchReader, error) {
 	}, nil
 }
 
+// NextBatch reads the next batch of bets from the CSV file, ensuring that the total size 
+// of the batch does not exceed 8KB and the number of bets does not exceed maxAmount.
+// It returns a slice of Bet and an error if any occurs during reading.
 func (r *BatchReader) NextBatch(agency string) ([]Bet, error) {
 	var batch []Bet
 	currentSize := 0

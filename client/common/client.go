@@ -56,6 +56,8 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
+// Sends the server the message. The message can be about sending a batch of bets (B)
+// or letting the server know the client finished sending bets (E)
 func (c *Client) sendAndReceive(msg string) (string, error) {
 	c.createClientSocket()
 	defer c.conn.Close()
@@ -68,6 +70,8 @@ func (c *Client) sendAndReceive(msg string) (string, error) {
 	return readLine(reader)
 }
 
+// Sends the server a message to ask for the bet results. Returns false if an error ocurrs or
+// if any client did not finish sending all their bets.
 func (c *Client) sendAndReceiveWinners(msg string) ([]string, bool, error) {
 	c.createClientSocket()
 	defer c.conn.Close()
@@ -100,6 +104,7 @@ func (c *Client) sendAndReceiveWinners(msg string) ([]string, bool, error) {
 	return winners, true, nil
 }
 
+// Send batch sends a batch of bets to the client
 func (c *Client) sendBatch(bets []Bet) {
 
 	msg := SerializeBatch(bets)
@@ -158,6 +163,9 @@ func (c *Client) SendBets(done chan os.Signal) {
 	return
 }
 
+// SendEnd sends a message that lets the Server know it finished sending all bets.
+// Message consists of "E|x\n". E being the signal that marks the type of message, and
+// x being the agency number.
 func (c *Client) SendEnd(done chan os.Signal) {
 	msg := fmt.Sprintf("E|%s\n", c.config.Agency)
 
@@ -191,6 +199,9 @@ func (c *Client) SendEnd(done chan os.Signal) {
 	}
 }
 
+// GetResults makes the client do polling on the server until it receives all winners of the bets the agency sent.
+// Messsage consists of "G|x\n". G being the signal that marks the type of message, and
+// x being the agency number.
 func (c *Client) GetResults(done chan os.Signal) {
 	msg := fmt.Sprintf("G|%s\n", c.config.Agency)
 

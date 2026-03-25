@@ -4,6 +4,7 @@ import (
 	"strings"
 )
 
+// Creates a bet using the line from the csv file.
 func parseCSVLine(line string, agency string) Bet {
 	parts := strings.Split(line, ",")
 
