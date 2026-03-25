@@ -36,6 +36,10 @@ class Server:
         signal.signal(signal.SIGINT, self.__handle_shutdown)
     
     def __handle_shutdown(self, signum, frame):
+        """
+        In case of receiving a shutdown signal, 
+        the server will stop accepting new connections and wait for the current ones to finish before shutting down.
+        """
         logging.info(f"action: shutdown | result: in_progress")
         self._is_running = False
         self._server_socket.close()
@@ -79,6 +83,14 @@ class Server:
         logging.info(f"action: shutdown | result: success")
 
     def process_signal(self, client_sock: socket.socket, signal: str, n: int, initial_buffer=b""):
+        """
+        Process the signal received from the client and returns a Result object with the result of the processing.
+        Depending on the signal, the function will perform different actions:
+        - If the signal is "B", it will receive a batch of bets from the client
+        - If the signal is "E", it will mark the agency as done and check if all agencies are done
+        - If the signal is "G", it will check if all agencies are done and return the winners for the requested agency
+        - For any other signal, it will return a Result object with ok = False and an error message
+        """
         if signal == "B":
             lines = recv_batch(client_sock, n, initial_buffer)
 
@@ -131,6 +143,11 @@ class Server:
             return Result(False, "Invalid signal")
         
     def __handle_client_connection_wrapper(self, client_sock):
+        """
+        Wrapper function to handle client connection and release the semaphore after processing the client request.
+        This function is necessary to ensure that the semaphore is released even if an exception occurs while processing
+        the client request.
+        """
         try:
             self.__handle_client_connection(client_sock)
         finally:
