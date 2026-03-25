@@ -182,7 +182,64 @@ Respetar el formato y contenido las entradas de logs descritas en los ejercicios
 
 # Seccion personal
 
+# Parte 1
+
+## Ejercicio 1
+
+Se creo un archivo generar-compose.sh que genera un archivo .yaml. Este archivo yaml que crea los siguientes containers:
+- server: crea el servidor, que acepta conexiones de clientes y recibe mensajes
+- n clientes: crea n clientes (n siendo parametro al llamar al generador).
+Estos clientes envian un mensaje al cliente y se desconectan.
+### Generar al archivo
+En la carpeta principal:
+```bash
+./generar-compose.sh {nombre-del-archivo} {n}
+```
+Como parametros, se envian el nombre del archivo (.yaml) y n siendo la cantidad de clientes.
+
+## Ejercicio 2
+
+Para evitar reconstruir las imagenes al modificar la configuracion, se sacaron las configuraciones de las
+imagenes docker y se inyectan en el tiempo de ejecucion mediante un volumen.
+
+Se agregaron volumenes en el generador de compose para que los archivos de configuracion se monten dentro
+del contenedor. Cualquier cambio local se refleja. Ademas, se elimino que se copie la configuracion del cliente en el dockerfile, evitando que la configuracion quede ligada a la imagen.
+
+La forma de ejecucion no cambia respecto al Ejercicio 1.
+
+## Ejercicio 3
+
+Se creo el script "validar-echo-server.sh". Con la imagen del servidor levantada, ejecutar en la carpeta principal del proyecto:
+```bash
+./validar-echo-server.sh
+```
+Este script levanta un contenedor temporal que se conecta a la red del servidor. Mediante netcat interno (no es requerido instalar netcat) Se comunica con el servidor para testear la capacidad de echo server, limpiando y comparando la respuesta.
+
+Escribe un mensaje particular segun si lo que recibe es igual o no a lo que se envio (correspondiente a un echo server)
+
+## Ejercicio 4
+
+Para detener el loop inicial, se creo un evento usando threading (en el caso del servidor) que espera una senal de
+SIGTERM, al momento de detectar la senal, se avisa al loop del servidor y se termina de aceptar clientes. Tambien se agrego un timeout para futuros ejercicios (parte 2 y 3).
+
+En el caso del cliente, se uso Notify para detectar el SIGTERM en go y frenar el cliente de continuar el loop.
+
+# Parte 2
+
 ## Ejercicio 5
+
+Se implemento en el yaml base (al generar el docker compose yaml (ej1)) con los datos de un cliente.
+
+El cliente ahora construye un objeto bet, lo serializa en un mensaje y lo envia al servidor.
+
+El servidor ahora recibe el mensaje de cliente, verifica la integridad, crea un objeto Bet y lo guarda usando los comandos de utils.py
+
+Tanto cliente como servidor tienen en cuenta el short write y short read y 
+tienen en cuenta enviar los datos hasta que no haya mas por enviar y leen 
+hasta que encuentran el delimitador de mensaje (\n).
+
+Se agrego que el servidor, al no recibir nuevas conexiones por 
+un tiempo determinado (3 segundos), se corte definitivamente.
 
 ### Protocolo
 
@@ -199,4 +256,130 @@ Campos: Todos tipo string en orden
 
 Respuesta:
 - String
-- Campo unico: status (OK o ERR segun resultado)
+- Campo unico: status (OK o NOK segun resultado)
+
+Se envia NOK si hay un error al parsear la Bet, y se descarta.
+
+## Ejercicio 6
+
+El cliente ya no loopea un "loop amount" de veces, sino que StartClientLoop fue reemplazado por sendBatch().
+Esta funcion tiene el objetivo de encargar a leer los archivos (ver batch_reader.go), 
+serializar cada bet correctamente (ver serializer.go) y enviar el batch de bets al servidor.
+
+batch_reader.go resuelve de forma interesante la limitacion de maxAmount y 8kb de datos. El lector lee el
+csv correspondiente de su cliente, hasta llegar a leer maxAmount bets, o al llegar a 8kb de datos,
+lo que ocurra antes. Para evitar perder datos, guarda un buffer con la ultima bet que no pudo ser agregada
+al mensaje, y espera a que el cliente vuelva a loopear, esperando un nuevo batch de datos.
+
+El servidor, por su parte, se encarga de recibir primero una linea. 
+Esta linea forma parte del nuevo protocolo y contiene la cantidad de bets enviadas en el batch.
+Luego, el servidor recibe datos hasta recibir la cantidad de bets esperadas.
+
+### Protoolo
+
+La diferencia en el cambio del protocolo con el ejercicio 5 es la presencia de "x\n" al inicio del mensaje
+del cliente. x representa la cantidad de bets que van a ser enviadas en ese batch de bets.
+
+un ejemplo se ve:
+
+```
+2\n
+agencia|nombre|apellido|dni|nacimiento|numero\n
+agencia|nombre|apellido|dni|nacimiento|numero\n
+```
+
+El servidor verifica todas las bets enviadas parseandolas en Bets. Si hay un error en una de ellas,
+la ignora y devuelve un mensaje de error al cliente.
+Notas:
+- El cliente ignora si recibe un mensaje de OK o NOK. Solo envia hasta quedarse sin bets para enviar
+(o un SIGTERM)
+- El servidor guarda las bets que se encuentren en el mismo batch que una bet incorrecta. Simplemente
+no se agrega la bet erronea a la lista.
+
+## Ejercicio 7
+
+Se cambio el protocolo para acomodar que el cliente pueda notificar al servidor el tipo de mensaje
+que se envia de parte del cliente. Se agregaron cambios de protocolo
+
+### Protocolo
+
+El cambio con respecto a ejercicios anteriores es el hecho de que se agrega una letra al inicio del mensaje,
+creando un "header" para el servidor. Este header contiene la letra correspondiente y un numero.
+Las senales son:
+
+#### B (Batch)
+
+La senal corresponde al ya existente sistema de enviar batches del cliente respecto al ejercicio anterior.
+
+Ejemplo:
+```
+B|2\n
+agencia|nombre|apellido|dni|nacimiento|numero\n
+agencia|nombre|apellido|dni|nacimiento|numero\n
+```
+
+El servidor responde de la misma forma que el Ejercicio anterior.
+
+#### E (End)
+
+La senal indica al servidor que el cliente ya finalizo de enviar todos los batches de bets, 
+y que no hay mas bets que enviar. El cliente envia este mensaje hasta recibir el OK del servidor,
+pero recibir un NOK es un caso borde.
+
+Ejemplo:
+```
+E|1\n
+```
+El cliente envia la senal y un numero, este numero siendo el numero de agencia del cliente.
+
+El servidor contesta "OK\n" y agrega la agencia a una lista de agencias que ya terminaron. En caso
+de que el cliente ya se encontrase en dicha lista, se envia "NOK\n", como caso borde.
+
+#### G (Get)
+
+La senal indica al servidor que el cliente de agencia x solicita los ganadores del concurso
+correspondientes a su agencia. En caso de que no todos los clientes hayan enviado el mensaje 
+con senal E (que indica que ya finalizaron de enviar bets), el servidor contesta "NOK\n".
+El cliente, al recibir "NOK\n", hace polling hasta recibir los usuarios.
+
+Ejemplo (cliente):
+```
+G|1\n
+```
+Siendo el numero (1 en el ejemplo) el numero de la agencia.
+
+Ejemplo (servidor):
+```
+NOK\n
+```
+En caso de que todos los otros clientes tambien hayan terminado, se leen los ganadores y se envia una respuesta con sus documentos separados por "\n"
+```
+3\n
+11111111\n
+22222222\n
+33333333\n
+```
+
+# Parte 3
+
+## Ejercicio 8
+
+Se implemento una solucion multiproceso. Es decir, cada nueva conexion aceptada por el servidor
+genera un nuevo proceso (Process). Cada proceso maneja el ciclo completo de comunicacion con un cliente.
+De esta forma, se evita el impacto de GIL de CPython, ya que todos los procesos tienen
+su propia memoria.
+
+Realizar multiprocessing hay problemas tanto de secciones criticas como de estados compartidos.
+Principalmente, los problemas a resolver fueron del estado compartido de agencies_done (la cantidad de
+agencias que terminaron de enviar bets) y store_bets, la funcion que guarda las bets enviadas por un cliente.
+
+Mediante un monitor, se logro hacer que se pueda compartir el estado evitando race conditions. Tambien
+logra limitar el acceso a la escritura de datos a solo uno a la vez, evitando la corrupcion de datos y dirty writes.
+
+Nota: Este lock protege ambos recursos a la vez. Es de esta forma para simplificar la implementacion
+sin penalizar de forma excesiva la performance.
+
+A su vez, se implemento un semaforo para limitar la cantidad maxima de procesos concurrentes.
+Por defecto, la cantidad de procesos simultaneos esta limitada al minimo entre el numero total de clientes
+y un valor maximo (10 por defecto). Esto tiene el objetivo de que se cree una cantidad ilimitada
+de procesos y que no se agoten los recursos (CPU, memoria).
