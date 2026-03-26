@@ -9,18 +9,25 @@ def process_header(header: str):
 def parse_bet(msg: str) -> Bet:
     parts = msg.strip().split("|")
 
-    # TODO
-    # Comprobar la bet
     if len(parts) != 6:
         return None
     
+    agency, first_name, last_name, document, birthdate, number = parts
+    
+    if (not agency.isdigit() or not document.isdigit() or not number.isdigit()):
+        return None
+    if len(birthdate.split("-")) != 3:
+        return None
+    if first_name == "" or last_name == "":
+        return None
+    
     return Bet(
-        agency = parts[0],
-        first_name = parts[1],
-        last_name = parts[2],
-        document = parts[3],
-        birthdate = parts[4],
-        number = parts[5]
+        agency,
+        first_name,
+        last_name,
+        document,
+        birthdate,
+        number,
     )
 
 def parse_winners(winners: list[Bet]):
