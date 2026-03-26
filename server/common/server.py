@@ -16,7 +16,6 @@ class Server:
         # To shutdown gracefully
         self._shutdown_event = threading.Event()
         # Timeout to unblock accept()
-        self._server_socket.settimeout(1)
         self._agencies_done = set()
         self._total_agencies = agencies
 
@@ -30,17 +29,10 @@ class Server:
 
         logging.info('action: accept_connections | result: in_progress')
 
-        idle_cycles = 0
-
         while not self._shutdown_event.is_set():
             try:
                 client_sock = self.__accept_new_connection()
                 self.__handle_client_connection(client_sock)
-                idle_cycles = 0
-            except socket.timeout:
-                idle_cycles += 1
-                if idle_cycles >= 3:
-                    break
             except OSError:
                 break
 
