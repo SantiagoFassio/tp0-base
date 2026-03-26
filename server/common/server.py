@@ -17,8 +17,6 @@ class Server:
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
 
-        self._server_socket.settimeout(1)
-
         self._total_agencies = agencies
 
         manager = Manager()
@@ -55,11 +53,8 @@ class Server:
         logging.info('action: accept_connections | result: in_progress')
 
         while self._is_running:
-            idle_cycles = 0
             try:
                 client_sock = self.__accept_new_connection()
-
-                idle_cycles = 0
                 self._sem.acquire()
 
                 p = Process(
@@ -71,10 +66,6 @@ class Server:
                 client_sock.close()
             except OSError:
                 break
-            except socket.timeout:
-                idle_cycles += 1
-                if idle_cycles >= 5:
-                    break
         
         for p in self._children:
             p.join(timeout = 1)
