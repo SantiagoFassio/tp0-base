@@ -373,8 +373,12 @@ Realizar multiprocessing hay problemas tanto de secciones criticas como de estad
 Principalmente, los problemas a resolver fueron del estado compartido de agencies_done (la cantidad de
 agencias que terminaron de enviar bets) y store_bets, la funcion que guarda las bets enviadas por un cliente.
 
-Mediante un monitor, se logro hacer que se pueda compartir el estado evitando race conditions. Tambien
+Mediante un manager, se logro hacer que se pueda compartir el estado evitando race conditions. Tambien
 logra limitar el acceso a la escritura de datos a solo uno a la vez, evitando la corrupcion de datos y dirty writes.
+
+El manager es un objeto perteneciente a la libreria de multiprocessing de python. Permite la creacion datos que pueden ser compartidos entre procesos. En este caso se uso para la creacion de un lock, un diccionario (para los clientes terminados) y un semaforo (ver mas abajo)
+
+Documentacion oficial: https://docs.python.org/3/library/multiprocessing.html#managers
 
 Nota: Este lock protege ambos recursos a la vez. Es de esta forma para simplificar la implementacion
 sin penalizar de forma excesiva la performance.
